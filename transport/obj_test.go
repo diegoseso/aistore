@@ -215,40 +215,6 @@ func Example_obj() {
 	// Temporibus autem...
 }
 
-func Example_msg() {
-	receive := func(w http.ResponseWriter, msg transport.Msg, err error) {
-		fmt.Printf("%s...\n", string(msg.Body[:16]))
-	}
-
-	ts := httptest.NewServer(msgmux)
-	defer ts.Close()
-
-	trname := "dummy-msg"
-	err := transport.HandleMsgStream(trname, receive)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	httpclient := transport.NewIntraDataClient()
-	url := ts.URL + transport.MsgURLPath(trname)
-	stream := transport.NewMsgStream(httpclient, url)
-
-	stream.Send(&transport.Msg{Body: []byte(lorem)})
-	stream.Send(&transport.Msg{Body: []byte(duis)})
-	stream.Send(&transport.Msg{Body: []byte(et)})
-	stream.Send(&transport.Msg{Body: []byte(temporibus)})
-
-	// TODO -- FIXME: Fin() instead of these two
-	time.Sleep(time.Second)
-	stream.Stop()
-
-	// Output:
-	// Lorem ipsum dolo...
-	// Duis aute irure ...
-	// Et harum quidem ...
-	// Temporibus autem...
-}
-
 // test random streaming
 func Test_OneStream(t *testing.T) {
 	ts := httptest.NewServer(objmux)

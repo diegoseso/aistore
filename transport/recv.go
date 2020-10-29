@@ -135,12 +135,9 @@ func RxAnyStream(w http.ResponseWriter, r *http.Request) {
 		_ = stats.Offset.Add(int64(hlen + cmn.SizeofI64*2)) // to account for proto header
 		if isObj {
 			obj, err = it.nextObj(hlen)
-			er := err
-			if er == io.EOF {
-				er = nil
-			}
+			errOK := eofOK(err)
 			if obj != nil {
-				h.rxObj(w, obj.hdr, obj, er)
+				h.rxObj(w, obj.hdr, obj, errOK)
 				hdr := &obj.hdr
 				if hdr.ObjAttrs.Size == obj.off {
 					var (
@@ -158,31 +155,42 @@ func RxAnyStream(w http.ResponseWriter, r *http.Request) {
 				num := stats.Num.Load()
 				err = fmt.Errorf("%s[%d:%d]: %v, num %d, off %d != %s",
 					trname, xxh, sessID, err, num, obj.off, obj)
+			} else if errOK != nil {
+				h.rxObj(w, ObjHdr{}, nil, errOK)
 			}
 		} else {
 			msg, err = it.nextMsg(hlen)
-			er := err
-			if er == io.EOF {
-				er = nil
+			errOK := eofOK(err)
+			if err == nil {
+				h.rxMsg(w, msg, errOK)
+			} else if errOK != nil {
+				h.rxMsg(w, Msg{}, errOK)
 			}
-			h.rxMsg(w, msg, er)
 		}
 	rerr:
-		if err != nil {
-			h.oldSessions.Store(uid, time.Now())
-			if err != io.EOF {
-				h.rxObj(w, ObjHdr{}, nil, err)
-				cmn.InvalidHandlerDetailed(w, r, err.Error())
-			}
-			if lz4Reader != nil {
-				lz4Reader.Reset(nil)
-			}
-			if fbuf != nil {
-				fbuf.Free()
-			}
-			return
+		if err == nil {
+			continue
 		}
+		h.oldSessions.Store(uid, time.Now())
+		if err != io.EOF {
+			cmn.InvalidHandlerDetailed(w, r, err.Error())
+		}
+		if lz4Reader != nil {
+			lz4Reader.Reset(nil)
+		}
+		if fbuf != nil {
+			fbuf.Free()
+		}
+		return
 	}
+}
+
+func eofOK(err error) (errOK error) {
+	errOK = err
+	if errOK == io.EOF {
+		errOK = nil
+	}
+	return
 }
 
 /////////////

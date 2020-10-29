@@ -52,9 +52,9 @@ func (s *MsgStream) errCmpl(err error)            {} // TODO -- FIXME
 func (s *MsgStream) doCmpl(_ streamable, _ error) {}
 func (s *MsgStream) compressed() bool             { return false }
 
-func (s *MsgStream) doRequest() (err error) {
+func (s *MsgStream) doRequest() error {
 	s.Numcur, s.Sizecur = 0, 0
-	return s.do(s, io.Reader(s))
+	return s.do(s, s)
 }
 
 func (s *MsgStream) Read(b []byte) (n int, err error) {
@@ -91,7 +91,13 @@ repeat:
 		glog.Infof("%s: stopped (%d/%d)", s, s.Numcur, num)
 		err = io.EOF
 		return
+	case _, ok := <-s.lastCh.Listen(): // TODO -- FIXME: collect and then remove
+		if !ok {
+			err = io.EOF
+			return
+		}
 	}
+	return
 }
 
 func (s *MsgStream) send(b []byte) (n int, err error) {
@@ -128,6 +134,9 @@ func (s *MsgStream) dryrun() {
 	)
 	for {
 		hlen, isObj, err := it.nextProtoHdr()
+		if err == io.EOF {
+			break
+		}
 		cmn.AssertNoErr(err)
 		cmn.Assert(!isObj)
 		_, _ = it.nextMsg(hlen)

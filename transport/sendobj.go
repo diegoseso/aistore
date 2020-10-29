@@ -159,23 +159,22 @@ func (s *Stream) doCmpl(streamable streamable, err error) {
 	}
 }
 
-func (s *Stream) doRequest() (err error) {
-	var body io.Reader = s
+func (s *Stream) doRequest() error {
 	s.Numcur, s.Sizecur = 0, 0
-	if s.compressed() {
-		s.lz4s.sgl.Reset()
-		if s.lz4s.zw == nil {
-			s.lz4s.zw = lz4.NewWriter(s.lz4s.sgl)
-		} else {
-			s.lz4s.zw.Reset(s.lz4s.sgl)
-		}
-		// lz4 framing spec at http://fastcompression.blogspot.com/2013/04/lz4-streaming-format-final.html
-		s.lz4s.zw.Header.BlockChecksum = false
-		s.lz4s.zw.Header.NoChecksum = !s.lz4s.frameChecksum
-		s.lz4s.zw.Header.BlockMaxSize = s.lz4s.blockMaxSize
-		body = &s.lz4s
+	if !s.compressed() {
+		return s.do(s, s)
 	}
-	return s.do(s, body)
+	s.lz4s.sgl.Reset()
+	if s.lz4s.zw == nil {
+		s.lz4s.zw = lz4.NewWriter(s.lz4s.sgl)
+	} else {
+		s.lz4s.zw.Reset(s.lz4s.sgl)
+	}
+	// lz4 framing spec at http://fastcompression.blogspot.com/2013/04/lz4-streaming-format-final.html
+	s.lz4s.zw.Header.BlockChecksum = false
+	s.lz4s.zw.Header.NoChecksum = !s.lz4s.frameChecksum
+	s.lz4s.zw.Header.BlockMaxSize = s.lz4s.blockMaxSize
+	return s.do(s, &s.lz4s)
 }
 
 // as io.Reader
@@ -241,6 +240,7 @@ func (s *Stream) sendHdr(b []byte) (n int, err error) {
 				glog.Infof("%s: sent last", s)
 			}
 			err = io.EOF
+			s.sendoff.ins = inEOB
 			s.lastCh.Close()
 		}
 	} else if verbose {
@@ -309,6 +309,9 @@ func (s *Stream) dryrun() {
 	)
 	for {
 		hlen, isObj, err := it.nextProtoHdr()
+		if err == io.EOF {
+			break
+		}
 		cmn.AssertNoErr(err)
 		cmn.Assert(isObj)
 		obj, err := it.nextObj(hlen)

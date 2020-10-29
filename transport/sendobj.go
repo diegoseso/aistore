@@ -71,7 +71,7 @@ func (s *Stream) terminate() {
 	// Remove stream after lock because we could deadlock between `do()`
 	// (which checks for `Terminated` status) and this function which
 	// would be under lock.
-	gc.remove(s)
+	gc.remove(&s.streamBase)
 
 	if s.compressed() {
 		s.lz4s.sgl.Free()
@@ -162,7 +162,7 @@ func (s *Stream) doCmpl(streamable streamable, err error) {
 func (s *Stream) doRequest() error {
 	s.Numcur, s.Sizecur = 0, 0
 	if !s.compressed() {
-		return s.do(s, s)
+		return s.do(s)
 	}
 	s.lz4s.sgl.Reset()
 	if s.lz4s.zw == nil {
@@ -174,7 +174,7 @@ func (s *Stream) doRequest() error {
 	s.lz4s.zw.Header.BlockChecksum = false
 	s.lz4s.zw.Header.NoChecksum = !s.lz4s.frameChecksum
 	s.lz4s.zw.Header.BlockMaxSize = s.lz4s.blockMaxSize
-	return s.do(s, &s.lz4s)
+	return s.do(&s.lz4s)
 }
 
 // as io.Reader
@@ -330,6 +330,34 @@ func (s *Stream) dryrun() {
 func (s *Stream) errCmpl(err error) {
 	if s.inSend() {
 		s.cmplCh <- cmpl{s.sendoff.obj, err}
+	}
+}
+
+// gc: drain terminated stream
+func (s *Stream) drain() {
+	for {
+		select {
+		case obj := <-s.workCh:
+			s.doCmpl(obj, s.term.err)
+		default:
+			return
+		}
+	}
+}
+
+// gc: close SQ and SCQ
+func (s *Stream) closeSCQ() {
+	close(s.workCh)
+	close(s.cmplCh)
+}
+
+// gc: post idle tick if idle
+func (s *Stream) idleTick() {
+	if len(s.workCh) == 0 && s.sessST.CAS(active, inactive) {
+		s.workCh <- &Obj{Hdr: ObjHdr{ObjAttrs: ObjectAttrs{Size: tickMarker}}}
+		if verbose {
+			glog.Infof("%s: active => inactive", s)
+		}
 	}
 }
 

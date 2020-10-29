@@ -51,10 +51,11 @@ func (s *MsgStream) abortPending(_ error, _ bool) {}
 func (s *MsgStream) errCmpl(err error)            {} // TODO -- FIXME
 func (s *MsgStream) doCmpl(_ streamable, _ error) {}
 func (s *MsgStream) compressed() bool             { return false }
+func (s *MsgStream) resetCompression()            { cmn.Assert(false) }
 
 func (s *MsgStream) doRequest() error {
 	s.Numcur, s.Sizecur = 0, 0
-	return s.do(s, s)
+	return s.do(s)
 }
 
 func (s *MsgStream) Read(b []byte) (n int, err error) {
@@ -142,6 +143,32 @@ func (s *MsgStream) dryrun() {
 		_, _ = it.nextMsg(hlen)
 		if err != nil {
 			break
+		}
+	}
+}
+
+// gc: drain terminated stream
+func (s *MsgStream) drain() {
+	for {
+		select {
+		case <-s.workCh:
+		default:
+			return
+		}
+	}
+}
+
+// gc: close SQ
+func (s *MsgStream) closeSCQ() {
+	close(s.workCh)
+}
+
+// gc: post idle tick if idle
+func (s *MsgStream) idleTick() {
+	if len(s.workCh) == 0 && s.sessST.CAS(active, inactive) {
+		s.workCh <- &Msg{Flags: tickMarker}
+		if verbose {
+			glog.Infof("%s: active => inactive", s)
 		}
 	}
 }

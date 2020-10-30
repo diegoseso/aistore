@@ -24,7 +24,7 @@ type (
 	}
 	msgoff struct {
 		msg Msg
-		off int64
+		off int
 		ins int // in-send enum
 	}
 )
@@ -97,10 +97,10 @@ repeat:
 
 func (s *MsgStream) send(b []byte) (n int, err error) {
 	n = copy(b, s.header[s.msgoff.off:])
-	s.msgoff.off += int64(n)
-	if s.msgoff.off >= int64(len(s.header)) {
-		cmn.Assert(s.msgoff.off == int64(len(s.header)))
-		s.stats.Offset.Add(s.msgoff.off)
+	s.msgoff.off += n
+	if s.msgoff.off >= len(s.header) {
+		cmn.Assert(s.msgoff.off == len(s.header))
+		s.stats.Offset.Add(int64(s.msgoff.off))
 		if verbose {
 			num := s.stats.Num.Load()
 			glog.Infof("%s: hlen=%d (%d/%d)", s, s.msgoff.off, s.Numcur, num)
@@ -114,8 +114,6 @@ func (s *MsgStream) send(b []byte) (n int, err error) {
 			err = io.EOF
 			s.lastCh.Close()
 		}
-	} else if verbose {
-		glog.Infof("%s: split header: copied %d < %d hlen", s, s.msgoff.off, len(s.header))
 	}
 	return
 }

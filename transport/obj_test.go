@@ -122,7 +122,7 @@ func Example_headers() {
 	defer ts.Close()
 
 	httpclient := transport.NewIntraDataClient()
-	stream := transport.NewStream(httpclient, ts.URL, nil)
+	stream := transport.NewObjStream(httpclient, ts.URL, nil)
 
 	sendText(stream, lorem, duis)
 	stream.Fin()
@@ -203,7 +203,7 @@ func Example_obj() {
 		return
 	}
 	httpclient := transport.NewIntraDataClient()
-	stream := transport.NewStream(httpclient, ts.URL+transport.ObjURLPath(trname), nil)
+	stream := transport.NewObjStream(httpclient, ts.URL+transport.ObjURLPath(trname), nil)
 	sendText(stream, lorem, duis)
 	sendText(stream, et, temporibus)
 	stream.Fin()
@@ -296,7 +296,7 @@ func Test_MultipleNetworks(t *testing.T) {
 
 		httpclient := transport.NewIntraDataClient()
 		url := ts.URL + transport.ObjURLPath(trname)
-		streams = append(streams, transport.NewStream(httpclient, url, nil))
+		streams = append(streams, transport.NewObjStream(httpclient, url, nil))
 	}
 
 	totalSend := int64(0)
@@ -332,7 +332,7 @@ func Test_OnSendCallback(t *testing.T) {
 	defer transport.Unhandle(trname)
 	httpclient := transport.NewIntraDataClient()
 	url := ts.URL + transport.ObjURLPath(trname)
-	stream := transport.NewStream(httpclient, url, nil)
+	stream := transport.NewObjStream(httpclient, url, nil)
 
 	var (
 		totalSend int64
@@ -409,7 +409,7 @@ func Test_ObjAttrs(t *testing.T) {
 	defer transport.Unhandle(trname)
 	httpclient := transport.NewIntraDataClient()
 	url := ts.URL + transport.ObjURLPath(trname)
-	stream := transport.NewStream(httpclient, url, nil)
+	stream := transport.NewObjStream(httpclient, url, nil)
 
 	random := newRand(mono.NanoTime())
 	for idx, attrs := range testAttrs {
@@ -470,7 +470,7 @@ func streamWriteUntil(t *testing.T, ii int, wg *sync.WaitGroup, ts *httptest.Ser
 	if compress {
 		extra = &transport.Extra{Compression: cmn.CompressAlways}
 	}
-	stream := transport.NewStream(httpclient, url, extra)
+	stream := transport.NewObjStream(httpclient, url, extra)
 	trname, sessID := stream.ID()
 	now := time.Now()
 

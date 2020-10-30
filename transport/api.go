@@ -91,7 +91,7 @@ type (
 // object stream //
 ///////////////////
 
-func NewStream(client Client, toURL string, extra *Extra) (s *Stream) {
+func NewObjStream(client Client, toURL string, extra *Extra) (s *Stream) {
 	s = &Stream{streamBase: *newStreamBase(client, toURL, extra)}
 	s.streamBase.streamer = s
 	if extra != nil {

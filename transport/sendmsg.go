@@ -44,7 +44,7 @@ func (s *MsgStream) terminate() {
 
 	s.term.mu.Unlock()
 
-	// TODO -- FIXME: un-collect
+	gc.remove(&s.streamBase)
 }
 
 func (s *MsgStream) abortPending(_ error, _ bool) {}
@@ -91,12 +91,6 @@ repeat:
 		num := s.stats.Num.Load()
 		glog.Infof("%s: stopped (%d/%d)", s, s.Numcur, num)
 		err = io.EOF
-		return
-	case _, ok := <-s.lastCh.Listen(): // TODO -- FIXME: collect and then remove
-		if !ok {
-			err = io.EOF
-			return
-		}
 	}
 	return
 }

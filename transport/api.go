@@ -166,7 +166,7 @@ func NewMsgStream(client Client, toURL string) (s *MsgStream) {
 	s.wg.Add(1)
 	go s.sendLoop(dryrun())
 
-	// TODO -- FIXME: collect
+	gc.ctrlCh <- ctrl{&s.streamBase, true /* collect */}
 	return
 }
 

@@ -74,7 +74,7 @@ func Test_MsgDryRun(t *testing.T) {
 			tutils.Logf("[dry]: %d MiB\n", size/cmn.MiB)
 		}
 	}
-	stream.Stop()
+	stream.Fin()
 	stats := stream.GetStats()
 
 	fmt.Printf("[dry]: offset=%d, num=%d(%d)\n", stats.Offset.Load(), stats.Num.Load(), num)

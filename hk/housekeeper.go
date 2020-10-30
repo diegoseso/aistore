@@ -28,10 +28,10 @@ type (
 	}
 
 	request struct {
-		registering     bool
 		name            string
 		f               CleanupFunc
 		initialInterval time.Duration
+		registering     bool
 	}
 
 	timedAction struct {
@@ -61,7 +61,7 @@ var (
 
 func init() {
 	DefaultHK = &housekeeper{
-		workCh:  make(chan request, 16),
+		workCh:  make(chan request, 1024), // streams
 		stopCh:  cmn.NewStopCh(),
 		sigCh:   make(chan os.Signal, 1),
 		actions: &timedActions{},
